@@ -7,6 +7,7 @@
     <dstdirs>
         <dstdir name="bindir">c:/gstreamer/bin</dstdir>
         <dstdir name="plugindir">c:/gstreamer/lib/gstreamer-0.10</dstdir>
+        <dstdir name="libdir">c:/gstreamer/lib</dstdir>
     </dstdirs>
     <group name="glib_libs">
         <item type="gname" dest="bindir">gobject</item>

@@ -4,7 +4,7 @@
 # of the distribution. The distribution is defined in a gstbuildpars.xml file by default
 #
 use strict;
-use File::Copy;
+use File::Copy "cp";
 use File::Path;
 use Getopt::Long;
 use Cwd 'fast_abs_path';
@@ -21,10 +21,53 @@ sub file_out {
 }
 
 
+my $dist_type = "win32";
 my $GST_MAJOR_VERSION = "0";
 my $GST_MINOR_VERSION = "10";
 my $GST_VER_SUFFIX = "-" . $GST_MAJOR_VERSION . "." . $GST_MINOR_VERSION;
 my $GST_LIB_PREFIX = "lib";
+my %deploy_cache; # keeps track of libraries that have already beend deployed
+
+sub bin_ext {
+    my $ext ="";
+    if( $dist_type eq "win32" ){
+        $ext = ".exe";
+    }
+    return $ext;
+}
+
+sub library_ext {
+    my $ext = "dll";
+    if( $dist_type eq "win32" ){
+        $ext = "dll";
+    }
+
+    if( $dist_type eq "linux" ){
+        $ext = "so";
+    }
+    return $ext;
+}
+
+sub strip {
+    my ($file) = @_;
+    if( $dist_type eq "win32" ){
+        print "win32 strip NA: $file";
+    }
+
+    if( $dist_type eq "linux" ){
+        system "strip $file";
+    }
+}
+
+sub bin_name {
+    my ($name) = @_;
+    return "$name" . bin_ext();
+}
+
+sub library_name {
+    my ($name) = @_;
+    return "lib" . $name . "." . library_ext();
+}
 
 
 sub gname {
@@ -36,10 +79,9 @@ sub lname {
     return $GST_LIB_PREFIX . $name . $GST_VER_SUFFIX . ".dll";
 }
 
-
 sub pname {
     my ($name) = @_;
-    return "libgst" . $name . ".dll";
+    return library_name( "gst" . $name );
 }
 
 
@@ -68,10 +110,11 @@ sub deploy_group
 
             my $dstdir = $dirs->{dstdirs}->{ $item->{dest} };
             
-            case 'pname' { copy_file( find_file_dir(pname($name), $dirs->{srcdirs} ), $dstdir, pname($name) ); }
-            case 'gname' { copy_file( find_file_dir(gname($name), $dirs->{srcdirs} ), $dstdir, gname($name) ); }
-            case 'plain' { copy_file( find_file_dir(      $name , $dirs->{srcdirs} ), $dstdir,       $name  ); }
-            case 'lname' { copy_file( find_file_dir(lname($name), $dirs->{srcdirs} ), $dstdir, lname($name) ); }
+            case 'pname' { deploy_file( $dirs, $dstdir, pname($name) ); }
+            case 'gname' { deploy_file( $dirs, $dstdir, gname($name) ); }
+            case 'plain' { deploy_file( $dirs, $dstdir,       $name  ); }
+            case 'bin'   { deploy_file( $dirs, $dstdir,bin_name($name) ); }
+            case 'lname' { deploy_file( $dirs, $dstdir, lname($name) ); }
         }
     }
 }
@@ -84,11 +127,66 @@ sub find_file_dir {
     for my $srcdir (@{$srcdirs}) {
         my $path = $srcdir . $name;
         #print "looking for $path\n";
-        if( -e $path ) { return $srcdir; };
+        if( -e $path and not -d $path ) { return $srcdir; };
     }
     return '';
 }
 
+#returns array with dependencies. empty array if no intrinsic deps
+# the return array is a hash with the dep and a suggested dst location 
+sub find_deps {
+    my ($dirs, $filename) = @_;
+    my $srcdirs = $dirs->{srcdirs};
+    my $dstdirs = $dirs->{dstdirs};
+
+    my $ofile = find_file_dir($filename,$srcdirs) . $filename;
+
+    #run ldd and retrieve first level deps
+    my @deps = `ldd $ofile`;
+    my %outdeps;
+
+    foreach my $line (@deps) {
+        my ($dep) = $line =~ /(\S+) =>/s ;
+        if( find_file_dir($dep, $srcdirs) ne '' ) {
+            if( $dist_type eq "win32" ) {
+                $outdeps{$dep} = $dstdirs->{bindir};
+            } else {
+                $outdeps{$dep} = $dstdirs->{libdir};
+            }
+
+            #print "dep: $dep\n";
+        }
+    }
+    
+    return %outdeps;
+
+}
+
+
+#deploys file with dependencies if necessary
+sub deploy_file {
+    my ($dirs, $dstdir, $filename ) = @_;
+    my $srcdirs = $dirs->{srcdirs};
+    my $dstdirs = $dirs->{dstdirs};
+
+    if ( not defined($deploy_cache{$filename})) {
+        my $srcdir = find_file_dir ($filename, $srcdirs);
+        die "$filename could not be found in any of the source directories" if $srcdir eq '';
+
+        # copy ourselves first
+        copy_file( $srcdir, $dstdir, $filename );
+
+        # find dependcies (in our sources) as file names (not full paths)
+        my %deps = find_deps($dirs, $filename);
+        # deploy dependencies (where?) bin/win32  lib/linux-darwin
+        foreach my $dep (keys %deps) {
+            deploy_file($dirs, $deps{$dep}, $dep);
+        }
+
+        $deploy_cache{$filename} = 1;
+    }
+
+}
 sub copy_file {
     my ($src_dir, $dst_dir, $filename) = @_;
 
@@ -98,57 +196,82 @@ sub copy_file {
     my $dst = $dst_dir . $filename;
 
     print "$src => $dst\n";
-    copy($src, $dst) or die "couldn't copy file $src";
+    system ("cp $src $dst") == 0 or die "couldn't copy file $src";
+    strip($dst);
 }
 
 sub help {
     my $help = <<"HELP";
-    usage: gst_build_dst --pars <pars_file>
+    usage: gst_build_dst --pars <pars_file> --src_base <src_base> --dst_base <dst_base>
 HELP
     print $help;
 }
 
-my @srcdirs; #the list of src dirs where to look for the file
 
-my $xmlparsfile = '';
-GetOptions('pars=s' => \$xmlparsfile );
+sub main {
+    my @srcdirs; #the list of src dirs where to look for the file
 
-if( $xmlparsfile eq '' ) {
-    help(); 
-    exit();
+    my $xmlparsfile = '';
+    my $src_base = '';
+    my $dst_base = '';
+    GetOptions('pars=s' => \$xmlparsfile, 
+        'src_base=s' => \$src_base, 
+        'dst_base=s' => \$dst_base,
+        'dist_type=s' => \$dist_type );
+
+    if( $xmlparsfile eq '' or $src_base eq '' or $dst_base eq '' ) {
+        help(); 
+        exit();
+    }
+
+    die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
+
+    my $xmlparser = XML::Simple->new(ForceArray => ['item', 'srcdir','dgroup','dstdir']);
+    my $xml = $xmlparser->XMLin($xmlparsfile);
+    # print Dumper( $xml );
+    
+    mkpath $dst_base;
+    $src_base = fast_abs_path($src_base);
+    $dst_base = fast_abs_path($dst_base);
+    $xmlparsfile = fast_abs_path($xmlparsfile);
+
+    print "Building $dist_type distro.\n";
+    print "src_base: $src_base\n";
+    print "dst_base: $dst_base\n";
+    print "parsfile: $xmlparsfile\n";
+
+    # get specified dirs 
+    @srcdirs = @{$xml->{srcdirs}->{srcdir}};
+    my %dstdirs;
+    for my $dstname (keys %{$xml->{dstdirs}->{dstdir}}) {
+        $dstdirs{$dstname} = $xml->{dstdirs}->{dstdir}->{$dstname}->{content};
+    }
+
+    die "dst bindir not defined in xml file" if not defined $dstdirs{bindir};
+    die "dst libdir not defined in xml file" if not defined $dstdirs{libdir};
+    die "dst plugindir not defined in xml file" if not defined $dstdirs{plugindir};
+
+    #make paths absolute
+    for my $dir (@srcdirs) { $dir = fast_abs_path($src_base . "/" . $dir); $dir = $dir . "/"; };
+    for my $name (keys %dstdirs) {
+        my $absdstdir = $dst_base . "/" . $dstdirs{$name};
+        mkpath $absdstdir;
+        $dstdirs{$name} = fast_abs_path( $absdstdir ) . "/"; 
+    };
+
+
+    my %dirs;
+    $dirs{srcdirs} = \@srcdirs;
+    $dirs{dstdirs} = \%dstdirs;
+
+    for my $dir (@{$dirs{srcdirs}}) { print "srcdir: $dir\n"; };
+    for my $name (keys %dstdirs) { print "$name: $dstdirs{$name}\n"; }; 
+
+    #deploy groups
+    for my $group  (@{$xml->{deploy}->{dgroup}}) {
+        deploy_group($group, $xml, \%dirs); 
+    }
+
 }
 
-die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
-
-my $xmlparser = XML::Simple->new(ForceArray => ['item', 'srcdir','dgroup','dstdir']);
-my $xml = $xmlparser->XMLin("gstbuildpars.xml");
-#print Dumper( $xml );
-
-# get specified dirs 
-@srcdirs = @{$xml->{srcdirs}->{srcdir}};
-my %dstdirs;
-for my $dstname (keys %{$xml->{dstdirs}->{dstdir}}) {
-    $dstdirs{$dstname} = $xml->{dstdirs}->{dstdir}->{$dstname}->{content};
-}
-
-#make paths absolute
-for my $dir (@srcdirs) { $dir = fast_abs_path($dir); $dir = $dir . "/"; };
-for my $name (keys %dstdirs) {
-    mkpath $dstdirs{$name}; 
-    $dstdirs{$name} = fast_abs_path( $dstdirs{$name} ); 
-    $dstdirs{$name} = $dstdirs{$name} . "/"; 
-};
-
-
-my %dirs;
-$dirs{srcdirs} = \@srcdirs;
-$dirs{dstdirs} = \%dstdirs;
-
-for my $dir (@{$dirs{srcdirs}}) { print "srcdir: $dir\n"; };
-for my $name (keys %dstdirs) { print "$name: $dstdirs{$name}\n"; }; 
-
-#deploy groups
-for my $group  (@{$xml->{deploy}->{dgroup}}) {
-    deploy_group($group, $xml, \%dirs); 
-}
-#copy_files( $src_dir, $dst_dir, @gst_base_libs );
+main();
