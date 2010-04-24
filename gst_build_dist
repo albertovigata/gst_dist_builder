@@ -1,0 +1,154 @@
+#!/usr/bin/perl
+#
+# Utility script to build customized gstreamer distributions given an xml definition
+# of the distribution. The distribution is defined in a gstbuildpars.xml file by default
+#
+use strict;
+use File::Copy;
+use File::Path;
+use Getopt::Long;
+use Cwd 'fast_abs_path';
+use XML::Simple;
+use Data::Dumper;
+use Switch;
+
+
+sub file_out {
+    my ($fname, $contents) = @_;
+    open ( FILE, ">$fname") or die "couldn't open $fname for writing";
+    print FILE $contents;
+    close (FILE);
+}
+
+
+my $GST_MAJOR_VERSION = "0";
+my $GST_MINOR_VERSION = "10";
+my $GST_VER_SUFFIX = "-" . $GST_MAJOR_VERSION . "." . $GST_MINOR_VERSION;
+my $GST_LIB_PREFIX = "lib";
+
+
+sub gname {
+    my ($name) = @_;
+    return "lib" . $name . "-2.0-0.dll";
+}
+sub lname {
+    my ($name) = @_;
+    return $GST_LIB_PREFIX . $name . $GST_VER_SUFFIX . ".dll";
+}
+
+
+sub pname {
+    my ($name) = @_;
+    return "libgst" . $name . ".dll";
+}
+
+
+# items to copy
+
+
+sub deploy_group
+{
+    my ($groupname, $xml, $dirs) = @_;
+    #get item array
+    die "$groupname not found in xml file\n" if not exists $xml->{group}->{$groupname};
+
+    my @items = @{$xml->{group}->{$groupname}->{item}};
+
+    #item is a hash table defined as 
+    #   { 
+    #   'dest'    => destdir
+    #   'content' => item_name
+    #   'type'    => item_type
+    #   }
+    
+    for my $item (@items) {
+        switch($item->{type}) {
+            my $name = $item->{content};
+            case 'group' { deploy_group( $item->{content}, $xml, $dirs ); }
+
+            my $dstdir = $dirs->{dstdirs}->{ $item->{dest} };
+            
+            case 'pname' { copy_file( find_file_dir(pname($name), $dirs->{srcdirs} ), $dstdir, pname($name) ); }
+            case 'gname' { copy_file( find_file_dir(gname($name), $dirs->{srcdirs} ), $dstdir, gname($name) ); }
+            case 'plain' { copy_file( find_file_dir(      $name , $dirs->{srcdirs} ), $dstdir,       $name  ); }
+            case 'lname' { copy_file( find_file_dir(lname($name), $dirs->{srcdirs} ), $dstdir, lname($name) ); }
+        }
+    }
+}
+
+#finds file in src dirs and returns full path to the file 
+#returns '' otherwise
+sub find_file_dir {
+    my ($name, $srcdirs) = @_;
+
+    for my $srcdir (@{$srcdirs}) {
+        my $path = $srcdir . $name;
+        #print "looking for $path\n";
+        if( -e $path ) { return $srcdir; };
+    }
+    return '';
+}
+
+sub copy_file {
+    my ($src_dir, $dst_dir, $filename) = @_;
+
+    die "invalid parameters for file copy: src=$src_dir dst=$dst_dir filename=$filename\n" if $src_dir eq "" or $dst_dir eq "" or $filename eq "";
+    mkpath $dst_dir;
+    my $src = $src_dir . $filename;
+    my $dst = $dst_dir . $filename;
+
+    print "$src => $dst\n";
+    copy($src, $dst) or die "couldn't copy file $src";
+}
+
+sub help {
+    my $help = <<"HELP";
+    usage: gst_build_dst --pars <pars_file>
+HELP
+    print $help;
+}
+
+my @srcdirs; #the list of src dirs where to look for the file
+
+my $xmlparsfile = '';
+GetOptions('pars=s' => \$xmlparsfile );
+
+if( $xmlparsfile eq '' ) {
+    help(); 
+    exit();
+}
+
+die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
+
+my $xmlparser = XML::Simple->new(ForceArray => ['item', 'srcdir','dgroup','dstdir']);
+my $xml = $xmlparser->XMLin("gstbuildpars.xml");
+#print Dumper( $xml );
+
+# get specified dirs 
+@srcdirs = @{$xml->{srcdirs}->{srcdir}};
+my %dstdirs;
+for my $dstname (keys %{$xml->{dstdirs}->{dstdir}}) {
+    $dstdirs{$dstname} = $xml->{dstdirs}->{dstdir}->{$dstname}->{content};
+}
+
+#make paths absolute
+for my $dir (@srcdirs) { $dir = fast_abs_path($dir); $dir = $dir . "/"; };
+for my $name (keys %dstdirs) {
+    mkpath $dstdirs{$name}; 
+    $dstdirs{$name} = fast_abs_path( $dstdirs{$name} ); 
+    $dstdirs{$name} = $dstdirs{$name} . "/"; 
+};
+
+
+my %dirs;
+$dirs{srcdirs} = \@srcdirs;
+$dirs{dstdirs} = \%dstdirs;
+
+for my $dir (@{$dirs{srcdirs}}) { print "srcdir: $dir\n"; };
+for my $name (keys %dstdirs) { print "$name: $dstdirs{$name}\n"; }; 
+
+#deploy groups
+for my $group  (@{$xml->{deploy}->{dgroup}}) {
+    deploy_group($group, $xml, \%dirs); 
+}
+#copy_files( $src_dir, $dst_dir, @gst_base_libs );

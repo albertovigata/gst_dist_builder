@@ -1,0 +1,99 @@
+<gstbuildpars>
+    <srcdirs>
+        <srcdir>Build/Windows/Win32/Release/bin/</srcdir>
+        <srcdir>Shared/Build/Windows/Win32/bin</srcdir>
+        <srcdir>Build/Windows/Win32/Release/bin/plugins</srcdir>
+    </srcdirs>
+    <dstdirs>
+        <dstdir name="bindir">c:/gstreamer/bin</dstdir>
+        <dstdir name="plugindir">c:/gstreamer/lib/gstreamer-0.10</dstdir>
+    </dstdirs>
+    <group name="glib_libs">
+        <item type="gname" dest="bindir">gobject</item>
+        <item type="gname" dest="bindir">glib</item>
+        <item type="gname" dest="bindir">gthread</item>
+        <item type="gname" dest="bindir">gmodule</item>
+        <item type="plain" dest="bindir">libxml2-2.dll</item>
+        <item type="plain" dest="bindir">iconv.dll</item>
+        <item type="plain" dest="bindir">z.dll</item>
+        <item type="plain" dest="bindir">liboil-0.3-0.dll</item>
+        <item type="plain" dest="bindir">pthreadgc2.dll</item>
+    </group>
+    <group name="gst_base">
+        <item type="group" >glib_libs</item>
+        <item type="lname" dest="bindir">gstinterfaces</item>
+        <item type="lname" dest="bindir">gstbase</item>
+        <item type="lname" dest="bindir">gstcontroller</item>
+        <item type="lname" dest="bindir">gstdataprotocol</item>
+        <item type="lname" dest="bindir">gstnet</item>
+        <item type="lname" dest="bindir">gstreamer</item>
+        <item type="lname" dest="bindir">gstaudio</item>
+        <item type="lname" dest="bindir">gstvideo</item>
+        <item type="lname" dest="bindir">gstrtp</item>
+        <item type="lname" dest="bindir">gstriff</item>
+        <item type="lname" dest="bindir">gsttag</item>
+        <item type="lname" dest="bindir">gstpbutils</item>
+        <item type="pname" dest="plugindir">typefindfunctions</item>
+        <item type="pname" dest="plugindir">coreelements</item>
+    </group>
+    <group name="mpeg2dec">
+        <item type="pname" dest="plugindir">mpeg2dec</item>
+        <item type="plain" dest="bindir">libmpeg2-0.dll</item>
+    </group>
+    <group name="mad">
+        <item type="pname" dest="plugindir">mad</item>
+        <item type="plain" dest="bindir">libmpeg2-0.dll</item>
+    </group>
+    <group name="x264">
+        <item type="pname" dest="plugindir">x264</item>
+        <item type="plain" dest="bindir">libx264-67.dll</item>
+    </group>
+    <group name="faac">
+        <item type="pname" dest="plugindir">faac</item>
+        <item type="plain" dest="bindir">libfaac-0.dll</item>
+    </group>
+    <group name="ffmpeg">
+        <item type="pname" dest="plugindir">ffmpeg-gpl</item>
+        <item type="plain" dest="bindir">avutil-gpl-50.dll</item>
+        <item type="plain" dest="bindir">avformat-gpl-52.dll</item>
+        <item type="plain" dest="bindir">avcodec-gpl-52.dll</item>
+        <item type="plain" dest="bindir">libbz2.dll</item>
+    </group>
+    <group name="gst_devel">
+        <item type="group">gst_base</item>
+        <item type="group">ffmpeg</item>
+        <item type="group">x264</item>
+        <item type="group">faac</item>
+        <item type="plain" dest="bindir">gst-inspect.exe</item>
+        <item type="plain" dest="bindir">gst-launch.exe</item>
+        <item type="plain" dest="bindir">gst-typefind.exe</item>
+        <item type="plain" dest="bindir">decodebin_testing.exe</item>
+        <item type="pname" dest="plugindir">decodebin</item>
+        <item type="pname" dest="plugindir">decodebin2</item>
+        <item type="pname" dest="plugindir">encodebin</item>
+        <item type="pname" dest="plugindir">playbin</item>
+        <item type="pname" dest="plugindir">mpegstream</item>
+        <item type="pname" dest="plugindir">autodetect</item>
+        <item type="pname" dest="plugindir">audioconvert</item>
+        <item type="pname" dest="plugindir">audioresample</item>
+        <item type="pname" dest="plugindir">matroska</item>
+        <item type="pname" dest="plugindir">audiorate</item>
+        <item type="pname" dest="plugindir">volume</item>
+        <item type="pname" dest="plugindir">ffmpegcolorspace</item>
+        <item type="pname" dest="plugindir">flv</item>
+        <item type="pname" dest="plugindir">videoscale</item>
+        <item type="pname" dest="plugindir">videobox</item>
+        <item type="pname" dest="plugindir">videorate</item>
+        <item type="pname" dest="plugindir">qtdemux</item>
+        <item type="pname" dest="plugindir">audiotestsrc</item>
+        <item type="pname" dest="plugindir">videotestsrc</item>
+        <item type="pname" dest="plugindir">dshowvideosink</item>
+        <item type="pname" dest="plugindir">directsound</item>
+        <item type="pname" dest="plugindir">avi</item>
+    </group>
+    <deploy> 
+        <dgroup>gst_devel</dgroup>
+    </deploy>
+    <options>
+    </options>
+</gstbuildpars>
