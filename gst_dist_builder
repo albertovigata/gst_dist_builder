@@ -12,6 +12,11 @@ use XML::Simple;
 use Data::Dumper;
 use Switch;
 
+sub __system {
+    my ($cmd, $echo) = @_;
+    print $cmd."\n" if defined($echo);
+    system $cmd;
+}
 
 sub file_out {
     my ($fname, $contents) = @_;
@@ -21,7 +26,7 @@ sub file_out {
 }
 
 
-my $dist_type = "win32";
+my $dist_type = "linux";
 my $GST_MAJOR_VERSION = "0";
 my $GST_MINOR_VERSION = "10";
 my $GST_VER_SUFFIX = "-" . $GST_MAJOR_VERSION . "." . $GST_MINOR_VERSION;
@@ -39,14 +44,9 @@ sub bin_ext {
 }
 
 sub library_ext {
-    my $ext = "dll";
-    if( $dist_type eq "win32" ){
-        $ext = "dll";
-    }
-
-    if( $dist_type eq "linux" ){
-        $ext = "so";
-    }
+    my $ext = "so";
+    if( $dist_type eq "win32" ){ $ext = "dll"; }
+    if( $dist_type eq "linux" ){ $ext = "so"; }
     return $ext;
 }
 
@@ -65,13 +65,15 @@ sub lddcmd {
 
 sub strip {
     my ($file) = @_;
+    my $cmd = "strip $file";
     if( $dist_type eq "win32" ){
-        system "$STRIP_WIN32 $file";
+        $cmd = "$STRIP_WIN32 $file";
     }
 
     if( $dist_type eq "linux" ){
-        system "strip $file";
+        $cmd = "strip $file";
     }
+    __system $cmd;    
 }
 
 sub bin_name {
@@ -212,7 +214,7 @@ sub copy_file {
     my $dst = $dst_dir . $filename;
 
     print "$src => $dst\n";
-    system ("cp $src $dst") == 0 or die "couldn't copy file $src";
+    __system ("cp $src $dst") == 0 or die "couldn't copy file $src";
     strip($dst);
 }
 
@@ -235,42 +237,54 @@ sub check_prerequisites {
     }
 }
 
-sub main {
-    my @srcdirs; #the list of src dirs where to look for the file
+sub create_tar_dist {
+    my ($xml, $distdir, $tardir) = @_;
 
-    my $xmlparsfile = '';
-    my $src_base = '';
-    my $dst_base = '';
-    GetOptions('pars=s' => \$xmlparsfile, 
-        'src_base=s' => \$src_base, 
-        'dst_base=s' => \$dst_base,
-        'dist_type=s' => \$dist_type );
+    if( not exists $xml->{options}->{tardist}->[0] ) { return; };
+    my $xtardist = $xml->{options}->{tardist}->[0]; 
 
-    if( $xmlparsfile eq '' or $src_base eq '' or $dst_base eq '' ) {
-        help(); 
-        exit();
+    mkpath $tardir;
+#tardist is now a hash like in
+#                                        {
+#                                      'tar' => 'on',
+#                                      'content' => 'sample_dist',
+#                                      'bgz' => 'on',
+#                                      'sevenzip' => 'on',
+#                                      'tgz' => 'on'
+#                                    }
+
+    my $tar = defined $xtardist->{tar} ? $xtardist->{tar} : '';
+    my $sevenzip = defined $xtardist->{sevenzip} ? $xtardist->{sevenzip} : '';
+    my $gzip = defined $xtardist->{gzip} ? $xtardist->{gzip} : '';
+    my $bzip2 = defined $xtardist->{bzip2} ? $xtardist->{bzip2} : '';
+
+    my $tarbase = $tardir."/".$xtardist->{content};
+
+    if( $tar eq 'on' ) {
+        __system ("tar cPf $tarbase.tar -C $distdir `ls $distdir`", 1) ;
     }
 
-    die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
+    if( $sevenzip eq 'on' ) {
+        __system ("tar cPf $tarbase.tar -C $distdir `ls $distdir`", 1);
+        __system ("7zr a -mx=9 $tarbase.tar.7z $tarbase.tar",1);
+    }
 
-    check_prerequisites();
+    if( $gzip eq 'on' ) {
+        __system ("tar czPf $tarbase.tar.gz -C $distdir `ls $distdir`", 1);
+    }
 
-    my $xmlparser = XML::Simple->new(ForceArray => ['item', 'srcdir','dgroup','dstdir']);
-    my $xml = $xmlparser->XMLin($xmlparsfile);
-    # print Dumper( $xml );
-    
-    mkpath $dst_base;
-    $src_base = fast_abs_path($src_base);
-    $dst_base = fast_abs_path($dst_base);
-    $xmlparsfile = fast_abs_path($xmlparsfile);
+    if( $bzip2 eq 'on' ) {
+        __system ("tar cjPf $tarbase.tar.bz2 -C $distdir `ls $distdir`", 1);
+    }
 
-    print "Building $dist_type distro.\n";
-    print "src_base: $src_base\n";
-    print "dst_base: $dst_base\n";
-    print "parsfile: $xmlparsfile\n";
+    __system("du -ab $tardir | sort -n");
+}
+
+sub resolve_dirs {
+    my ($xml, $src_base, $dst_base) = @_;
 
     # get specified dirs 
-    @srcdirs = @{$xml->{srcdirs}->{srcdir}};
+    my @srcdirs = @{$xml->{srcdirs}->{srcdir}};
     my %dstdirs;
     for my $dstname (keys %{$xml->{dstdirs}->{dstdir}}) {
         $dstdirs{$dstname} = $xml->{dstdirs}->{dstdir}->{$dstname}->{content};
@@ -296,10 +310,53 @@ sub main {
     for my $dir (@{$dirs{srcdirs}}) { print "srcdir: $dir\n"; };
     for my $name (keys %dstdirs) { print "$name: $dstdirs{$name}\n"; }; 
 
+    return %dirs;
+}
+sub main {
+    my $xmlparsfile = '';
+    my $src_base = '';
+    my $dst_base = '';
+    GetOptions('pars=s' => \$xmlparsfile, 
+        'src_base=s' => \$src_base, 
+        'dst_base=s' => \$dst_base,
+        'dist_type=s' => \$dist_type );
+
+    if( $xmlparsfile eq '' or $src_base eq '' or $dst_base eq '' ) {
+        help(); 
+        exit();
+    }
+
+    die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
+
+    check_prerequisites();
+
+    my $xmlparser = XML::Simple->new(ForceArray => ['item', 'srcdir','dgroup','dstdir','tardist']);
+    my $xml = $xmlparser->XMLin($xmlparsfile);
+    #print Dumper( $xml ) and die;
+    
+    mkpath $dst_base;
+    $src_base = fast_abs_path($src_base);
+    $dst_base = fast_abs_path($dst_base);
+    $xmlparsfile = fast_abs_path($xmlparsfile);
+
+    if( defined $xml->{options}->{cleanfirst} ) { __system("rm -rf $dst_base/*", 1); };
+
+    my $distdir = $dst_base."/dist";
+
+    print "Building $dist_type distro.\n";
+    print "src_base: $src_base\n";
+    print "dst_base: $dst_base\n";
+    print "parsfile: $xmlparsfile\n";
+
+    my %dirs = resolve_dirs($xml, $src_base, $distdir);
+
+
     #deploy groups
     for my $group  (@{$xml->{deploy}->{dgroup}}) {
         deploy_group($group, $xml, \%dirs); 
     }
+
+    create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
 
 }
 

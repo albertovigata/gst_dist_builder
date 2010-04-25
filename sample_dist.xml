@@ -41,7 +41,7 @@
         <dgroup>gst_devel</dgroup>
     </deploy>
     <options>
-        <basesrcdir>.</basesrcdir>
-        <basedstdir>.</basedstdir>
+        <tardist tar="on" sevenzip="on" gzip="on" bzip2="on" >sample_dist</tardist> 
+        <cleanfirst/>
     </options>
 </gstbuildpars>
