@@ -17,13 +17,6 @@ use Switch;
 my $scpath=dirname(abs_path($0));
 require "$scpath/nlperl/nlperl_common.pl";
 
-
-sub __system {
-    my ($cmd, $echo) = @_;
-    print $cmd."\n" if defined($echo);
-    system $cmd;
-}
-
 sub file_out {
     my ($fname, $contents) = @_;
     open ( FILE, ">$fname") or die "couldn't open $fname for writing";
@@ -79,7 +72,7 @@ sub strip {
     if( $dist_type eq "linux" ){
         $cmd = "strip $file";
     }
-    __system $cmd;    
+    __system ($cmd);    
 }
 
 sub bin_name {
@@ -222,6 +215,12 @@ sub copy_file {
     print "$src => $dst\n";
     __system ("cp $src $dst") == 0 or die "couldn't copy file $src";
     strip($dst);
+
+    #do relative path handling
+    if( $dist_type eq "linux" ) {
+        relativize_rpath($src, $dst);
+    }
+       
 }
 
 sub help {

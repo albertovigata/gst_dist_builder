@@ -17,6 +17,9 @@
         <item type="bin" dest="bindir">gst-inspect</item>
         <item type="bin" dest="bindir">gst-launch</item>
         <item type="bin" dest="bindir">gst-typefind</item>
+        <item type="bin" dest="bindir">gst-inspect-0.10</item>
+        <item type="bin" dest="bindir">gst-launch-0.10</item>
+        <item type="bin" dest="bindir">gst-typefind-0.10</item>
         <item type="pname" dest="plugindir">ffmpeg</item>
         <item type="pname" dest="plugindir">decodebin2</item>
         <item type="pname" dest="plugindir">nltrans</item>
