@@ -1,0 +1,3 @@
+[submodule "nlperl"]
+	path = nlperl
+	url = ngit@nelalabs.com:common/nlperl
