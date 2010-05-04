@@ -204,6 +204,28 @@ sub deploy_file {
     }
 
 }
+
+# copies so library file and all files in the src directory
+# with the same base name preserving links
+sub copy_so_file {
+    my ($src_dir, $dst_dir, $sofile) = @_;
+
+    my $sobase = $sofile;
+
+    if ( $sobase =~ s/(.*\.so).*/\1/ ) {
+        #get all files in src dir with the same base
+        my @files = get_dir_files( $src_dir, 1, $sobase );
+        #do a copy preserving links of all these files
+        for my $file (@files) {
+            my $src = $src_dir . $file;
+            my $dst = $dst_dir . $file;
+            print "$src => $dst\n";
+            __system ("cp -P $src $dst") == 0 or die "couldn't copy file $src";
+        }
+    }
+}
+
+
 sub copy_file {
     my ($src_dir, $dst_dir, $filename) = @_;
 
@@ -212,8 +234,12 @@ sub copy_file {
     my $src = $src_dir . $filename;
     my $dst = $dst_dir . $filename;
 
-    print "$src => $dst\n";
-    __system ("cp $src $dst") == 0 or die "couldn't copy file $src";
+    if( $filename =~ /.+\.so/ ) {
+        copy_so_file( $src_dir, $dst_dir, $filename );
+    } else {
+        print "$src => $dst\n";
+        __system ("cp $src $dst") == 0 or die "couldn't copy file $src";
+    }
     strip($dst);
 
     #do relative path handling
