@@ -26,6 +26,11 @@ sub file_out {
 
 
 my $dist_type = "linux";
+my $dist_os = "linux";
+my $dist_arch = "x86_64";
+
+my @supported_dtypes = ( "linux-x86_64", "windows-x86_32" );
+
 my $GST_MAJOR_VERSION = "0";
 my $GST_MINOR_VERSION = "10";
 my $GST_VER_SUFFIX = "-" . $GST_MAJOR_VERSION . "." . $GST_MINOR_VERSION;
@@ -36,7 +41,7 @@ my $STRIP_WIN32; # win32 strip cmd
 
 sub bin_ext {
     my $ext ="";
-    if( $dist_type eq "win32" ){
+    if( $dist_os eq "windows" ){
         $ext = ".exe";
     }
     return $ext;
@@ -44,8 +49,8 @@ sub bin_ext {
 
 sub library_ext {
     my $ext = "so";
-    if( $dist_type eq "win32" ){ $ext = "dll"; }
-    if( $dist_type eq "linux" ){ $ext = "so"; }
+    if( $dist_os eq "windows" ){ $ext = "dll"; }
+    if( $dist_os eq "linux" ){ $ext = "so"; }
     return $ext;
 }
 
@@ -53,7 +58,7 @@ sub lddcmd {
     my ($args) = @_;
     my $res;
 
-    if( $dist_type eq "win32" ){
+    if( $dist_os eq "windows" ){
         $res = "$LDD_WIN32 $args";
     } else {
         $res = "ldd $args";
@@ -65,11 +70,11 @@ sub lddcmd {
 sub strip {
     my ($file) = @_;
     my $cmd = "strip $file";
-    if( $dist_type eq "win32" ){
+    if( $dist_type eq "windows-x86_32" ){
         $cmd = "$STRIP_WIN32 $file";
     }
 
-    if( $dist_type eq "linux" ){
+    if( $dist_os eq "linux" ){
         $cmd = "strip $file";
     }
     __system ($cmd);    
@@ -165,7 +170,7 @@ sub find_deps {
     foreach my $line (@deps) {
         my ($dep) = $line =~ /(\S+) =>/s ;
         if( find_file_dir($dep, $srcdirs) ne '' ) {
-            if( $dist_type eq "win32" ) {
+            if( $dist_os eq "windows" ) {
                 $outdeps{$dep} = $dstdirs->{bindir};
             } else {
                 $outdeps{$dep} = $dstdirs->{libdir};
@@ -243,7 +248,7 @@ sub copy_file {
     strip($dst);
 
     #do relative path handling
-    if( $dist_type eq "linux" ) {
+    if( $dist_os eq "linux" ) {
         relativize_rpath($src, $dst);
     }
        
@@ -257,7 +262,7 @@ HELP
 }
 
 sub check_prerequisites {
-    if( $dist_type eq "win32" ) {
+    if( $dist_type eq "windows-x86_32" ) {
         die "wine doesn't seem to be installed. needed for ldd.exe" if not `which wine` =~ /wine/;
 
         $LDD_WIN32 = fast_abs_path("tools/ldd.exe");
@@ -352,9 +357,20 @@ sub main {
         'dst_base=s' => \$dst_base,
         'dist_type=s' => \$dist_type );
 
+
     if( $xmlparsfile eq '' or $src_base eq '' or $dst_base eq '' ) {
         help(); 
         exit();
+    }
+
+    my $supported = 0;
+    for my $dist (@supported_dtypes) {
+        if( $dist eq $dist_type ) { $supported = 1; }
+    }
+    die "$dist_type is not a supported distribution type\n" if $supported==0;
+    if( $dist_type =~ /(.+)-(.+)/ ) {
+        $dist_os = $1;
+        $dist_arch = $2;
     }
 
     die "couldn't find $xmlparsfile." if not -e $xmlparsfile;
@@ -378,6 +394,8 @@ sub main {
     print "src_base: $src_base\n";
     print "dst_base: $dst_base\n";
     print "parsfile: $xmlparsfile\n";
+    print "dist_os: $dist_os\n";
+    print "dist_arch: $dist_arch\n";
 
     my %dirs = resolve_dirs($xml, $src_base, $distdir);
 
