@@ -109,7 +109,7 @@ sub write_yaalboot_nreg {
     $xml .= "<os   type=\"string\" val=\"$dist_os\"/>\n";
     $xml .= "<arch type=\"string\" val=\"$dist_arch\"/>\n";
     $xml .= "<win32_dllbinpath type=\"string\" val=\"bin\"/>\n" if $dist_os eq "windows";
-    $xml .= "</$name></native></nbundle></yaal>\n";
+    $xml .= "</$name></native></nbundle></boot></yaal>\n";
 
     print "$xml";
     nl_write_textfile( $outfile, $xml );
