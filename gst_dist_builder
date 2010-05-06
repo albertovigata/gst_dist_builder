@@ -17,14 +17,6 @@ use Switch;
 my $scpath=dirname(abs_path($0));
 require "$scpath/nlperl/nlperl_common.pl";
 
-sub file_out {
-    my ($fname, $contents) = @_;
-    open ( FILE, ">$fname") or die "couldn't open $fname for writing";
-    print FILE $contents;
-    close (FILE);
-}
-
-
 my $dist_type = "linux";
 my $dist_os = "linux";
 my $dist_arch = "x86_64";
@@ -105,6 +97,45 @@ sub pname {
     return library_name( "gst" . $name );
 }
 
+#creates an xmlish registry entry
+# that can be used as the .nreg entry of an nbundle
+# of this distribution 
+sub write_yaalboot_nreg {
+    my ($name, $tarname, $outfile) = @_;
+
+    my $xml = "<yaal><boot><nbundle><native><$name>\n";
+
+    $xml .= "<tar  type=\"string\" val=\"$tarname\"/>\n";
+    $xml .= "<os   type=\"string\" val=\"$dist_os\"/>\n";
+    $xml .= "<arch type=\"string\" val=\"$dist_arch\"/>\n";
+    $xml .= "<win32_dllbinpath type=\"string\" val=\"bin\"/>\n" if $dist_os eq "windows";
+    $xml .= "</$name></native></nbundle></yaal>\n";
+
+    print "$xml";
+    nl_write_textfile( $outfile, $xml );
+}
+
+# creates a yaal compatible nbundle
+# for this distribution
+sub create_dist_nbundle {
+    my ($name, $tarfile, $nbundlefile) = @_;
+    my $dstdir = dirname(abs_path($tarfile));
+    my $nreg = $name . "_boot.nreg";
+    my $nregfile = "$dstdir/$nreg";
+    my $defaultdir = "$dstdir/defaultdir";
+    my ($tarname,$path,$suffix) = __fileparse($tarfile);
+    my $bundletarname = $tarname .".native";
+    #nbundlesimple expects a directory for the default section. create one and put
+    # contents in it
+
+
+    __system("mkdir $defaultdir", 1);
+    __system("cp $tarfile $defaultdir/$bundletarname" , 1);
+
+    write_yaalboot_nreg($name, $bundletarname, $nregfile);
+
+    __system("$scpath/nlutils/tools/nbundlesimple -v -c -b $nregfile -d $defaultdir -o $nbundlefile", 1);
+}
 
 # items to copy
 
@@ -287,14 +318,19 @@ sub create_tar_dist {
 #                                      'bgz' => 'on',
 #                                      'sevenzip' => 'on',
 #                                      'tgz' => 'on'
+#                                      'nbundle' => 'on'
 #                                    }
 
     my $tar = defined $xtardist->{tar} ? $xtardist->{tar} : '';
     my $sevenzip = defined $xtardist->{sevenzip} ? $xtardist->{sevenzip} : '';
     my $gzip = defined $xtardist->{gzip} ? $xtardist->{gzip} : '';
-    my $bzip2 = defined $xtardist->{bzip2} ? $xtardist->{bzip2} : '';
+    my $bzip2 =   defined $xtardist->{bzip2} ? $xtardist->{bzip2} : '';
+    my $nbundle = defined $xtardist->{nbundle} ? $xtardist->{nbundle} : '';
 
-    my $tarbase = $tardir."/".$xtardist->{content};
+    my $name = $xtardist->{content} . "-$dist_os-$dist_arch";
+    my $tarbase = $tardir."/". $name;
+
+    $tar = 'on' if $nbundle eq 'on';
 
     if( $tar eq 'on' ) {
         __system ("tar cPf $tarbase.tar -C $distdir `ls $distdir`", 1) ;
@@ -311,6 +347,10 @@ sub create_tar_dist {
 
     if( $bzip2 eq 'on' ) {
         __system ("tar cjPf $tarbase.tar.bz2 -C $distdir `ls $distdir`", 1);
+    }
+
+    if( $nbundle eq 'on' ) {
+        create_dist_nbundle( $name, "$tarbase.tar", "$tarbase.nbundle" );
     }
 
     __system("du -ab $tardir | sort -n");

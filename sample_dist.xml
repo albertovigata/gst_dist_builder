@@ -44,7 +44,7 @@
         <dgroup>gst_devel</dgroup>
     </deploy>
     <options>
-        <tardist tar="on" sevenzip="on" gzip="on" bzip2="on" >sample_dist</tardist> 
+        <tardist nbundle="on" tar="on" sevenzip="off" gzip="off" bzip2="off" >sample_dist</tardist> 
         <cleanfirst/>
     </options>
 </gstbuildpars>
