@@ -352,7 +352,11 @@ sub create_tar_dist {
         create_dist_nbundle( $name, "$tarbase.tar", "$tarbase.nbundle" );
     }
 
-    __system("du -ab $tardir | sort -n");
+    if( $dist_os eq 'darwin' ) {
+        __system("du -a $tardir | sort -n");
+    } else {
+        __system("du -ab $tardir | sort -n");
+    }
 }
 
 sub resolve_dirs {
