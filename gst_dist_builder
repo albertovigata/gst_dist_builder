@@ -21,7 +21,7 @@ my $dist_type = "linux";
 my $dist_os = "linux";
 my $dist_arch = "x86_64";
 
-my @supported_dtypes = ( "linux-x86_64", "windows-x86_32" );
+my @supported_dtypes = ( "darwin-x86_32", "darwin-x86_64", "linux-x86_32", "linux-x86_64", "windows-x86_32" );
 
 my $GST_MAJOR_VERSION = "0";
 my $GST_MINOR_VERSION = "10";
@@ -43,6 +43,7 @@ sub library_ext {
     my $ext = "so";
     if( $dist_os eq "windows" ){ $ext = "dll"; }
     if( $dist_os eq "linux" ){ $ext = "so"; }
+    if( $dist_os eq "darwin" ){ $ext = "dylib"; }
     return $ext;
 }
 
@@ -64,11 +65,9 @@ sub strip {
     my $cmd = "strip $file";
     if( $dist_type eq "windows-x86_32" ){
         $cmd = "$STRIP_WIN32 $file";
-    }
-
-    if( $dist_os eq "linux" ){
+    } else {
         $cmd = "strip $file";
-    }
+    } 
     __system ($cmd);    
 }
 
