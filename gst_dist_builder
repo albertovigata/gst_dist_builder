@@ -295,7 +295,7 @@ sub check_prerequisites {
     if( $dist_type eq "windows-x86_32" ) {
         die "wine doesn't seem to be installed. needed for ldd.exe" if not `which wine` =~ /wine/;
 
-        $LDD_WIN32 = fast_abs_path("tools/ldd.exe");
+        $LDD_WIN32 = __abs_path("$scpath/tools/ldd.exe");
         $LDD_WIN32 = "wine $LDD_WIN32 -w ";
         $STRIP_WIN32 = "i586-mingw32msvc-strip"; #FIXME totally fix this
         print "LDD_WIN32: $LDD_WIN32\n";
