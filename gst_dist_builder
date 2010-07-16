@@ -21,7 +21,7 @@ my $dist_type = "linux";
 my $dist_os = "linux";
 my $dist_arch = "x86_64";
 
-my @supported_dtypes = ( "darwin-x86_32", "darwin-x86_64", "linux-x86_32", "linux-x86_64", "windows-x86_32" );
+my @supported_dtypes = ( "darwin-x86_32", "darwin-x86_64", "linux-x86_32", "linux-x86_64", "windows-x86_32", "windows-x86_64" );
 
 my $GST_MAJOR_VERSION = "0";
 my $GST_MINOR_VERSION = "10";
@@ -30,6 +30,8 @@ my $GST_LIB_PREFIX = "lib";
 my %deploy_cache; # keeps track of libraries that have already beend deployed
 my $LDD_WIN32; # ldd win32 command
 my $STRIP_WIN32; # win32 strip cmd
+my $LDD_WIN64; # ldd win64 command
+my $STRIP_WIN64; # win64 strip cmd
 
 sub bin_ext {
     my $ext ="";
@@ -52,7 +54,11 @@ sub lddcmd {
     my $res;
 
     if( $dist_os eq "windows" ){
-        $res = "$LDD_WIN32 $args";
+        if( $dist_arch eq "x86_32" ) {
+            $res = "$LDD_WIN32 $args";
+        } else {
+            $res = "$LDD_WIN64 $args";
+        }
     } else {
         $res = "ldd $args";
     }
@@ -63,12 +69,17 @@ sub lddcmd {
 sub strip {
     my ($file) = @_;
     my $cmd = "strip $file";
-    if( $dist_type eq "windows-x86_32" ){
-        $cmd = "$STRIP_WIN32 $file";
+
+    if( $dist_os eq "windows" ){
+        if( $dist_arch eq "x86_32" ) {
+            $cmd = "$STRIP_WIN32 $file";
+        } else {
+            $cmd = "$STRIP_WIN64 $file";
+        }
     } else {
         $cmd = "strip $file";
     } 
-    __system ($cmd);    
+    __system ($cmd, 1);    
 }
 
 sub bin_name {
@@ -292,12 +303,14 @@ HELP
 }
 
 sub check_prerequisites {
-    if( $dist_type eq "windows-x86_32" ) {
+    if( $dist_os eq "windows" ) {
         die "wine doesn't seem to be installed. needed for ldd.exe" if not `which wine` =~ /wine/;
 
         $LDD_WIN32 = __abs_path("$scpath/tools/ldd.exe");
         $LDD_WIN32 = "wine $LDD_WIN32 -w ";
         $STRIP_WIN32 = "i586-mingw32msvc-strip"; #FIXME totally fix this
+        $LDD_WIN64 = $LDD_WIN32;    #FIXME
+        $STRIP_WIN64 = $LDD_WIN32;  #FIXME
         print "LDD_WIN32: $LDD_WIN32\n";
         print "STRIP_WIN32: $STRIP_WIN32\n";
     }
