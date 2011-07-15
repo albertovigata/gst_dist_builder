@@ -143,7 +143,7 @@ sub create_dist_nbundle {
     __system("mkdir $defaultdir", 1);
     __system("cp $tarfile $defaultdir/$bundletarname" , 1);
 
-    write_yaalboot_nreg($name, $bundletarname, $nregfile, sha1sum($tarfile) );
+    write_yaalboot_nreg($name, $bundletarname, $nregfile, sha1file($tarfile) );
 
     __system("$scpath/nlutils/tools/nbundlesimple -v -c -b $nregfile -d $defaultdir -o $nbundlefile", 1);
 }
