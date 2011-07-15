@@ -111,13 +111,14 @@ sub pname {
 # that can be used as the .nreg entry of an nbundle
 # of this distribution 
 sub write_yaalboot_nreg {
-    my ($name, $tarname, $outfile) = @_;
+    my ($name, $tarname, $outfile, $sha1 ) = @_;
 
     my $xml = "<yaal><boot><nbundle><native><$name>\n";
 
     $xml .= "<tar  type=\"string\" val=\"$tarname\"/>\n";
     $xml .= "<os   type=\"string\" val=\"$dist_os\"/>\n";
     $xml .= "<arch type=\"string\" val=\"$dist_arch\"/>\n";
+    $xml .= "<sha1 type=\"string\" val=\"$sha1\"/>\n";
     $xml .= "<win32_dllbinpath type=\"string\" val=\"bin\"/>\n" if $dist_os eq "windows";
     $xml .= "</$name></native></nbundle></boot></yaal>\n";
 
@@ -142,7 +143,7 @@ sub create_dist_nbundle {
     __system("mkdir $defaultdir", 1);
     __system("cp $tarfile $defaultdir/$bundletarname" , 1);
 
-    write_yaalboot_nreg($name, $bundletarname, $nregfile);
+    write_yaalboot_nreg($name, $bundletarname, $nregfile, sha1sum($tarfile) );
 
     __system("$scpath/nlutils/tools/nbundlesimple -v -c -b $nregfile -d $defaultdir -o $nbundlefile", 1);
 }
@@ -412,7 +413,6 @@ sub main {
         'src_base=s' => \$src_base, 
         'dst_base=s' => \$dst_base,
         'dist_type=s' => \$dist_type );
-
 
     if( $xmlparsfile eq '' or $src_base eq '' or $dst_base eq '' ) {
         help(); 
