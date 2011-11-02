@@ -463,6 +463,9 @@ sub main {
 
     create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
 
+    if (not defined $xml->{options}->{keeptemp}) {
+        __system("find $dst_base  -type f ! -name \"*.nbundle\" | xargs rm",1,1);
+    }
 }
 
 main();
