@@ -1,6 +1,0 @@
-[submodule "nlperl"]
-	path = nlperl
-	url = ngit@nelalabs.com:common/nlperl
-[submodule "nlutils"]
-	path = nlutils
-	url = ngit@nelalabs.com:nlutils
