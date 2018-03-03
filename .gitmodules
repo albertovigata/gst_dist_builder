@@ -1,6 +1,3 @@
-[submodule "nlperl"]
-	path = nlperl
-	url = git@bitbucket.org:concalma/nlperl
 [submodule "nlutils"]
 	path = nlutils
 	url = git@bitbucket.org:concalma/nlutils
