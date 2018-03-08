@@ -466,6 +466,10 @@ sub main {
     if (not defined $xml->{options}->{keeptemp}) {
         __system("find $dst_base  -type f ! -name \"*.nbundle\" | xargs rm",1,1);
     }
+
+    if (not defined $xml->{options}->{keepemptydirs}) {
+        __system("find $dst_base -type d -empty -delete")
+    }
 }
 
 main();
