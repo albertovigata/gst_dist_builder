@@ -247,7 +247,7 @@ sub deploy_file {
             deploy_file($dirs, $deps{$dep}, $dep);
         }
 
-        $deploy_cache{$filename} = 1;
+        $deploy_cache{$filename} = "$srcdir/$filename" ;
     }
 
 }
@@ -317,6 +317,20 @@ sub check_prerequisites {
     }
 }
 
+sub name_expand{
+    my ($name) = @_;
+
+    if( $name =~ /%%(.+)%%/ ) {
+        if( defined($deploy_cache{$1}) ) {
+            my $ver = nl_read_textfile($deploy_cache{$1});
+            $ver =~ s/[\n\r]//g;
+            $name =~ s/%%(.+)%%/$ver/;
+            print "$ver  $name";
+        }
+    }
+
+    return $name;
+}
 sub create_tar_dist {
     my ($xml, $distdir, $tardir) = @_;
 
@@ -341,7 +355,7 @@ sub create_tar_dist {
     my $nbundle = defined $xtardist->{nbundle} ? $xtardist->{nbundle} : '';
     my $sevenzip_standalone = defined $xtardist->{sevenzip_standalone} ? $xtardist->{sevenzip_standalone} : '';
 
-    my $name = $xtardist->{content} . "-$dist_os-$dist_arch";
+    my $name = name_expand($xtardist->{content}) . "-$dist_os-$dist_arch";
     my $tarbase = $tardir."/". $name;
 
     $tar = 'on' if $nbundle eq 'on';
