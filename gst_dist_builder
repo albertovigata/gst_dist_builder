@@ -347,7 +347,7 @@ sub create_tar_dist {
     $tar = 'on' if $nbundle eq 'on';
 
     if( $sevenzip_standalone ) {
-        __system( "7zr a -mx=9 $tarbase.7z $tarbase",1);
+        __system( "7zr a -mx=9 $tarbase.7z $distdir/.",1);
     }
 
     if( $tar eq 'on' ) {
@@ -466,8 +466,6 @@ sub main {
         deploy_group($group, $xml, \%dirs); 
     }
 
-    create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
-
     if (not defined $xml->{options}->{keeptemp}) {
         __system("find $dst_base  -type f ! -name \"*.nbundle\" | xargs rm",1,1);
     }
@@ -475,6 +473,9 @@ sub main {
     if (not defined $xml->{options}->{keepemptydirs}) {
         __system("find $dst_base -type d -empty -delete")
     }
+
+    create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
+
 }
 
 main();
