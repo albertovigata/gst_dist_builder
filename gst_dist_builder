@@ -176,7 +176,7 @@ sub deploy_group
             case 'pname' { deploy_file( $dirs, $dstdir, pname($name) ); }
             case 'gname' { deploy_file( $dirs, $dstdir, gname($name) ); }
             case 'plain' { deploy_file( $dirs, $dstdir,       $name  ); }
-            case 'bin'   { deploy_file( $dirs, $dstdir,bin_name($name) ); }
+            case 'bin'   { deploy_file( $dirs, $dstdir,bin_name($name), $item->{type} ); }
             case 'lname' { deploy_file( $dirs, $dstdir, lname($name) ); }
         }
     }
@@ -229,7 +229,7 @@ sub find_deps {
 
 #deploys file with dependencies if necessary
 sub deploy_file {
-    my ($dirs, $dstdir, $filename ) = @_;
+    my ($dirs, $dstdir, $filename, $type ) = @_;
     my $srcdirs = $dirs->{srcdirs};
     my $dstdirs = $dirs->{dstdirs};
 
@@ -238,13 +238,13 @@ sub deploy_file {
         die "$filename could not be found in any of the source directories" if $srcdir eq '';
 
         # copy ourselves first
-        copy_file( $srcdir, $dstdir, $filename );
+        copy_file( $srcdir, $dstdir, $filename, $type );
 
         # find dependcies (in our sources) as file names (not full paths)
         my %deps = find_deps($dirs, $filename);
         # deploy dependencies (where?) bin/win32  lib/linux-darwin
         foreach my $dep (keys %deps) {
-            deploy_file($dirs, $deps{$dep}, $dep);
+            deploy_file($dirs, $deps{$dep}, $dep, $type);
         }
 
         $deploy_cache{$filename} = "$srcdir/$filename" ;
@@ -274,7 +274,7 @@ sub copy_so_file {
 
 
 sub copy_file {
-    my ($src_dir, $dst_dir, $filename) = @_;
+    my ($src_dir, $dst_dir, $filename, $type) = @_;
 
     die "invalid parameters for file copy: src=$src_dir dst=$dst_dir filename=$filename\n" if $src_dir eq "" or $dst_dir eq "" or $filename eq "";
     mkpath $dst_dir;
@@ -287,7 +287,10 @@ sub copy_file {
         print "$src => $dst\n";
         __system ("cp $src $dst") == 0 or die "couldn't copy file $src";
     }
-    strip($dst);
+
+    if( defined $type && $type=='bin') {
+        strip($dst);
+    }
 
     #do relative path handling
     if( $dist_os eq "linux" ) {
@@ -325,7 +328,6 @@ sub name_expand{
             my $ver = nl_read_textfile($deploy_cache{$1});
             $ver =~ s/[\n\r]//g;
             $name =~ s/%%(.+)%%/$ver/;
-            print "$ver  $name";
         }
     }
 
