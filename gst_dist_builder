@@ -363,7 +363,16 @@ sub create_tar_dist {
     $tar = 'on' if $nbundle eq 'on';
 
     if( $sevenzip_standalone ) {
+
         __system( "7zr a -mx=9 $tarbase.7z $distdir/.",1);
+        if( defined $xtardist->{ftpupload} ) {
+            # $USER, $PASSWORD,  $DST must be defined
+            if( not defined $ENV{'VGTUP_USER'} or not defined $ENV{'VGTUP_PASSWORD'} or not defined $ENV{'VGTUP_LOC'} ) {
+                print "VGTUP_USER, VGTUP_PASSWORD, VGTUP_LOC env vars must be defined for upload\n";
+                return;
+            }
+            __system("curl -T $tarbase.7z ftp://$ENV{'VGTUP_USER'}:$ENV{'VGTUP_PASSWORD'}\@$ENV{'VGTUP_LOC'}", 1);
+        }
     }
 
     if( $tar eq 'on' ) {
@@ -491,6 +500,7 @@ sub main {
     }
 
     create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
+    
 
 }
 
