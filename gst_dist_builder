@@ -499,7 +499,7 @@ sub main {
         __system("find $dst_base -type d -empty -delete")
     }
 
-    create_tar_dist( $xml, $distdir, $dst_base."/tardist" ); 
+    create_tar_dist( $xml, $distdir, $dst_base ); 
     
 
 }
